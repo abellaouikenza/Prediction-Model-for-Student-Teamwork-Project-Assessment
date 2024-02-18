@@ -1,0 +1,159 @@
+---
+title: "T3"
+author: "Kenza Abellaoui"
+date: '2023-07-05'
+output: html_document
+---
+
+```{r}
+library(readxl)
+
+csv_file <- 'C:/Users/surface/OneDrive/Desktop/Graduation_Project/Grad_Proj_Data.xlsx'
+
+T1_data <- read_excel(csv_file, sheet = 'setapProductT3')
+columns_to_keep <- c('year', 'semester', 'timeInterval', 'teamNumber', 'semesterId', 'teamMemberCount', 'femaleTeamMembersPercent', 'teamLeadGender', 'teamDistribution', 'teamMemberResponseCount', 'meetingHoursTotal', 'inPersonMeetingHoursTotal', 'nonCodingDeliverablesHoursTotal', 'codingDeliverablesHoursTotal', 'helpHoursTotal', 'globalLeadAdminHoursTotal', 'leadAdminHoursResponseCount', 'globalLeadAdminHoursResponseCount', 'commitCount', 'uniqueCommitMessageCount', 'uniqueCommitMessagePercent', 'commitMessageLengthTotal', 'issueCount', 'onTimeIssueCount', 'lateIssueCount', 'productLetterGrade')
+
+T3_data <- T3_data[, columns_to_keep]
+T3_data$globalLeadAdminHoursTotal[is.na(T3_data$globalLeadAdminHoursTotal)] <- 0
+
+
+#Add column of encoded team dist
+T3_data$teamDistribution_encoded <- ifelse(T3_data$teamDistribution == "Local", 0, 1)
+print(T3_data)
+
+str(T3_data)
+```
+
+```{r}
+gender_counts <- table(T3_data$teamLeadGender)
+gender_counts
+```
+```{r}
+numeric_columns <- c('teamMemberCount', 'femaleTeamMembersPercent','teamMemberResponseCount', 'meetingHoursTotal', 'inPersonMeetingHoursTotal', 'nonCodingDeliverablesHoursTotal', 'codingDeliverablesHoursTotal', 'helpHoursTotal', 'globalLeadAdminHoursTotal', 'leadAdminHoursResponseCount', 'globalLeadAdminHoursResponseCount', 'commitCount', 'uniqueCommitMessageCount', 'uniqueCommitMessagePercent', 'commitMessageLengthTotal', 'issueCount', 'onTimeIssueCount','teamDistribution_encoded')
+
+# Filter out the numeric columns
+numeric_data <- T3_data[ , numeric_columns]
+```
+
+```{r}
+# Convert character columns to numeric
+numeric_data$femaleTeamMembersPercent <- as.numeric(numeric_data$femaleTeamMembersPercent)
+numeric_data$meetingHoursTotal <- as.numeric(numeric_data$meetingHoursTotal)
+numeric_data$inPersonMeetingHoursTotal <- as.numeric(numeric_data$inPersonMeetingHoursTotal)
+numeric_data$nonCodingDeliverablesHoursTotal <- as.numeric(numeric_data$nonCodingDeliverablesHoursTotal)
+numeric_data$codingDeliverablesHoursTotal <- as.numeric(numeric_data$codingDeliverablesHoursTotal)
+numeric_data$helpHoursTotal <- as.numeric(numeric_data$helpHoursTotal)
+numeric_data$globalLeadAdminHoursTotal <- as.numeric(numeric_data$globalLeadAdminHoursTotal)
+numeric_data$uniqueCommitMessagePercent <- as.numeric(numeric_data$uniqueCommitMessagePercent)
+```
+
+
+```{r}
+str(numeric_data)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Create a list to store the combined boxplot plots
+combined_boxplots <- list()
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Prepare the data for plotting
+  plot_data <- numeric_data %>%
+    select(teamDistribution_encoded, .data[[col]])
+  
+  # Create the combined boxplot plot
+  plot <- ggplot(plot_data, aes(x = factor(teamDistribution_encoded), y = .data[[col]], fill = factor(teamDistribution_encoded))) +
+    geom_boxplot() +
+    labs(title = col, x = "Category", y = NULL) +
+    theme_minimal() +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+  
+  # Add the plot to the list
+  combined_boxplots[[col]] <- plot
+}
+
+# View the combined boxplot plots
+combined_boxplots
+
+```
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+
+# Create a directory to save the plots
+dir.create("boxplot_plotsT3")
+
+# Set the theme to have a white background
+my_theme <- theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA))
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Prepare the data for plotting
+  plot_data <- numeric_data %>%
+    select(teamDistribution_encoded, .data[[col]])
+  
+  # Create the combined boxplot plot
+  plot <- ggplot(plot_data, aes(x = factor(teamDistribution_encoded), y = .data[[col]], fill = factor(teamDistribution_encoded))) +
+    geom_boxplot(show.legend = FALSE) +
+    labs(title = NULL, x = NULL, y = NULL) +
+    my_theme +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+  
+  # Save the plot as an image file without titles
+  filename <- paste0("boxplot_plotsT3/", col, "_boxplotT3.png")
+  ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+}
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+
+# Create a directory to save the density plots
+dir.create("density_plots_distT3")
+
+# Create a list to store the modified density plots
+modified_density_plots <- list()
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Calculate mean and standard deviation for the current column
+  mean_val <- mean(numeric_data[[col]])
+  sd_val <- sd(numeric_data[[col]])
+
+  # Create a density plot for both categories
+  plot <- ggplot(numeric_data, aes(x = .data[[col]])) +
+    geom_density(fill = "blue", alpha = 0.5) +
+    stat_function(fun = dnorm, args = list(mean = mean_val, sd = sd_val),
+                  color = "blue", linetype = "dashed", size = 1) +
+    labs(title = NULL, x = NULL, y = "Density") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          plot.background = element_rect(fill = "white", color = NA)) +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+
+  # Save the modified plot as an image file based on the team distribution category
+  filename <- paste0("density_plots_distT3/", col, "_density_plot_T3_", unique(numeric_data$teamDistribution_encoded), ".png")
+  ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+
+  # Add the modified plot to the list
+  modified_density_plots[[col]] <- plot
+}
+
+# View the modified density plots
+modified_density_plots
+
+```

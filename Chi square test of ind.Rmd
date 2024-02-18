@@ -1,0 +1,52 @@
+---
+title: "Untitled"
+author: "Kenza Abellaoui"
+date: '2023-07-05'
+output: html_document
+---
+```{r}
+library(readxl)
+library(dplyr)
+
+# Specify the path to your Excel file
+excel_file <- 'C:/Users/surface/OneDrive/Desktop/Graduation_Project/Grad_Proj_Data.xlsx'
+
+# Read all sheet names from the Excel file
+sheet_names <- excel_sheets(excel_file)
+
+# Initialize an empty dataframe to store the concatenated data
+combined_df <- data.frame()
+
+# Iterate over each sheet and concatenate the desired columns
+for (sheet in sheet_names) {
+  sheet_data <- read_excel(excel_file, sheet = sheet)
+  
+  # Select the desired columns (teamNumber and product letter grade)
+  selected_cols <- sheet_data %>%
+    select('teamNumber', 'productLetterGrade')
+  
+  combined_df <- bind_rows(combined_df, selected_cols)
+}
+
+# Print the combined dataframe
+print(combined_df)
+
+```
+```{r}
+# Count the number of duplicates in the teamNumber column
+duplicate_count <- sum(duplicated(combined_df$teamNumber))
+
+# Print the count of duplicates
+print(duplicate_count)
+```
+```{r}
+# Encode product letter grade as a binary variable
+combined_df$product_encoded <- ifelse(combined_df$productLetterGrade == "A", 1, 0)
+
+# Perform chi-square test of independence
+chisq_result <- chisq.test(combined_df$product_encoded, combined_df$teamNumber)
+
+# Print the chi-square test result
+print(chisq_result)
+```
+

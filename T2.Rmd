@@ -1,0 +1,523 @@
+---
+title: "T2"
+author: "Kenza Abellaoui"
+date: '2023-07-05'
+output: html_document
+---
+
+```{r}
+library(readxl)
+
+csv_file <- 'C:/Users/surface/OneDrive/Desktop/Graduation_Project/Grad_Proj_Data.xlsx'
+
+T2_data <- read_excel(csv_file, sheet = 'setapProductT2')
+columns_to_keep <- c('year', 'semester', 'timeInterval', 'teamNumber', 'semesterId', 'teamMemberCount', 'femaleTeamMembersPercent', 'teamLeadGender', 'teamDistribution', 'teamMemberResponseCount', 'meetingHoursTotal', 'inPersonMeetingHoursTotal', 'nonCodingDeliverablesHoursTotal', 'codingDeliverablesHoursTotal', 'helpHoursTotal', 'globalLeadAdminHoursTotal', 'leadAdminHoursResponseCount', 'globalLeadAdminHoursResponseCount', 'commitCount', 'uniqueCommitMessageCount', 'uniqueCommitMessagePercent', 'commitMessageLengthTotal', 'issueCount', 'onTimeIssueCount', 'lateIssueCount', 'productLetterGrade')
+
+T2_data <- T2_data[, columns_to_keep]
+T2_data$globalLeadAdminHoursTotal[is.na(T2_data$globalLeadAdminHoursTotal)] <- 0
+
+
+#Add column of encoded team dist
+T2_data$teamDistribution_encoded <- ifelse(T2_data$teamDistribution == "Local", 0, 1)
+print(T2_data)
+
+str(T2_data)
+```
+```{r}
+gender_counts <- table(T2_data$teamLeadGender)
+gender_counts
+```
+```{r}
+numeric_columns <- c('teamMemberCount', 'femaleTeamMembersPercent','teamMemberResponseCount', 'meetingHoursTotal', 'inPersonMeetingHoursTotal', 'nonCodingDeliverablesHoursTotal', 'codingDeliverablesHoursTotal', 'helpHoursTotal', 'globalLeadAdminHoursTotal', 'leadAdminHoursResponseCount', 'globalLeadAdminHoursResponseCount', 'commitCount', 'uniqueCommitMessageCount', 'uniqueCommitMessagePercent', 'commitMessageLengthTotal', 'issueCount', 'onTimeIssueCount','teamDistribution_encoded')
+
+# Filter out the numeric columns
+numeric_data <- T2_data[ , numeric_columns]
+```
+
+```{r}
+# Convert character columns to numeric
+numeric_data$femaleTeamMembersPercent <- as.numeric(numeric_data$femaleTeamMembersPercent)
+numeric_data$meetingHoursTotal <- as.numeric(numeric_data$meetingHoursTotal)
+numeric_data$inPersonMeetingHoursTotal <- as.numeric(numeric_data$inPersonMeetingHoursTotal)
+numeric_data$nonCodingDeliverablesHoursTotal <- as.numeric(numeric_data$nonCodingDeliverablesHoursTotal)
+numeric_data$codingDeliverablesHoursTotal <- as.numeric(numeric_data$codingDeliverablesHoursTotal)
+numeric_data$helpHoursTotal <- as.numeric(numeric_data$helpHoursTotal)
+numeric_data$globalLeadAdminHoursTotal <- as.numeric(numeric_data$globalLeadAdminHoursTotal)
+numeric_data$uniqueCommitMessagePercent <- as.numeric(numeric_data$uniqueCommitMessagePercent)
+```
+
+```{r}
+str(numeric_data)
+```
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Create a list to store the combined boxplot plots
+combined_boxplots <- list()
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Prepare the data for plotting
+  plot_data <- numeric_data %>%
+    select(teamDistribution_encoded, .data[[col]])
+  
+  # Create the combined boxplot plot
+  plot <- ggplot(plot_data, aes(x = factor(teamDistribution_encoded), y = .data[[col]], fill = factor(teamDistribution_encoded))) +
+    geom_boxplot() +
+    labs(title = col, x = "Category", y = NULL) +
+    theme_minimal() +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+  
+  # Add the plot to the list
+  combined_boxplots[[col]] <- plot
+}
+
+# View the combined boxplot plots
+combined_boxplots
+
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+
+# Create a directory to save the plots
+dir.create("boxplot_plotsT2")
+
+# Set the theme to have a white background
+my_theme <- theme_minimal() +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background = element_rect(fill = "white", color = NA))
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Prepare the data for plotting
+  plot_data <- numeric_data %>%
+    select(teamDistribution_encoded, .data[[col]])
+  
+  # Create the combined boxplot plot
+  plot <- ggplot(plot_data, aes(x = factor(teamDistribution_encoded), y = .data[[col]], fill = factor(teamDistribution_encoded))) +
+    geom_boxplot(show.legend = FALSE) +
+    labs(title = NULL, x = NULL, y = NULL) +
+    my_theme +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+  
+  # Save the plot as an image file without titles
+  filename <- paste0("boxplot_plotsT2/", col, "_boxplotT2.png")
+  ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+}
+
+
+
+
+library(dplyr)
+library(ggplot2)
+
+
+# Create a directory to save the density plots
+dir.create("density_plots_distT2")
+
+# Create a list to store the modified density plots
+modified_density_plots <- list()
+
+# Iterate over each column in the dataframe
+for (col in colnames(numeric_data)) {
+  # Calculate mean and standard deviation for the current column
+  mean_val <- mean(numeric_data[[col]])
+  sd_val <- sd(numeric_data[[col]])
+
+  # Create a density plot for both categories
+  plot <- ggplot(numeric_data, aes(x = .data[[col]])) +
+    geom_density(fill = "blue", alpha = 0.5) +
+    stat_function(fun = dnorm, args = list(mean = mean_val, sd = sd_val),
+                  color = "blue", linetype = "dashed", size = 1) +
+    labs(title = NULL, x = NULL, y = "Density") +
+    theme_minimal() +
+    theme(legend.position = "none",
+          plot.background = element_rect(fill = "white", color = NA)) +
+    facet_wrap(~ teamDistribution_encoded, labeller = labeller(teamDistribution_encoded = c("0" = "Local", "1" = "Global")))
+
+  # Save the modified plot as an image file based on the team distribution category
+  filename <- paste0("density_plots_distT2/", col, "_density_plot_T2_", unique(numeric_data$teamDistribution_encoded), ".png")
+  ggsave(filename, plot, width = 6, height = 4, dpi = 300)
+
+  # Add the modified plot to the list
+  modified_density_plots[[col]] <- plot
+}
+
+# View the modified density plots
+modified_density_plots
+
+
+```{r}
+# Calculate the lower and upper bounds for outlier detection
+Q1 <- apply(numeric_data, 2, quantile, 0.25, na.rm = TRUE)
+Q3 <- apply(numeric_data, 2, quantile, 0.75, na.rm = TRUE)
+IQR <- Q3 - Q1
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+# Identify rows with outliers in numeric columns (excluding "teamDistribution_encoded")
+outlier_rows <- apply(numeric_data[-which(names(numeric_data) == "teamDistribution_encoded")], 1, function(row) {
+  any(row < lower_bound | row > upper_bound, na.rm = TRUE) || numeric_data$femaleTeamMembersPercent[row] != 0
+})
+
+# Remove rows with outliers from the original data frame
+data_no_outliers <- T2_data[!outlier_rows, ]
+
+
+# Identify rows with "Global" in the "teamDistribution_encoded" column
+global_rows <- numeric_data$teamDistribution_encoded == 1
+
+# Identify rows where femaleTeamMembersPercent is not equal to zero
+non_zero_female_rows <- numeric_data$femaleTeamMembersPercent != 0
+
+# Combine the outlier, global, and non-zero female rows
+rows_to_keep <- global_rows | non_zero_female_rows
+
+# Remove rows with outliers from the original data frame
+data_no_outliers <- T2_data[rows_to_keep, ]
+
+# Remove rows with outliers from the numeric data
+numeric_data_no_outliers <- numeric_data[rows_to_keep, ]
+```
+
+```{r}
+print(numeric_data_no_outliers)
+
+```
+
+```{r}
+numeric_data_no_outliers$femaleTeamMembersPercent <- as.numeric(numeric_data_no_outliers$femaleTeamMembersPercent)
+numeric_data_no_outliers$meetingHoursTotal <- as.numeric(numeric_data_no_outliers$meetingHoursTotal)
+numeric_data_no_outliers$inPersonMeetingHoursTotal <- as.numeric(numeric_data_no_outliers$inPersonMeetingHoursTotal)
+numeric_data_no_outliers$nonCodingDeliverablesHoursTotal <- as.numeric(numeric_data_no_outliers$nonCodingDeliverablesHoursTotal)
+numeric_data_no_outliers$codingDeliverablesHoursTotal <- as.numeric(numeric_data_no_outliers$codingDeliverablesHoursTotal)
+numeric_data_no_outliers$helpHoursTotal <- as.numeric(numeric_data_no_outliers$helpHoursTotal)
+numeric_data_no_outliers$globalLeadAdminHoursTotal <- as.numeric(numeric_data_no_outliers$globalLeadAdminHoursTotal)
+numeric_data_no_outliers$uniqueCommitMessagePercent <- as.numeric(numeric_data_no_outliers$uniqueCommitMessagePercent)
+```
+
+```{r}
+str(numeric_data_no_outliers)
+```
+
+
+```{r}
+
+library(moments)
+library(ggplot2)
+
+# Columns to check for normality
+columns_to_check <- colnames(numeric_data_no_outliers)
+
+# Iterate over the columns
+for (col_name in columns_to_check) {
+  column <- numeric_data_no_outliers[[col_name]]
+  
+  # Skip columns with only one unique value
+  if (length(unique(column)) <= 1) {
+    warning(paste("Column", col_name, "has only one unique value. Skipping."))
+    next
+  }
+  
+  # Perform Shapiro-Wilk test for normality
+  shapiro_test <- shapiro.test(column)
+  
+  # Check p-value of the test
+  p_value <- shapiro_test$p.value
+  
+  # If p-value is less than the significance level (0.05), the data is not normal
+  if (p_value < 0.05) {
+    # Initialize variables for storing transformation results
+    transformed_column <- NULL
+    best_skewness <- Inf
+    
+    # Apply different transformations and select the best one based on skewness
+    transformations <- list(
+      identity = column,
+      logarithmic = log(column + 1),
+      square_root = sqrt(column),
+      rank = rank(column)
+    )
+    
+    for (transformation_name in names(transformations)) {
+      transformed_data <- transformations[[transformation_name]]
+      
+      # Check for NaN values in the transformed data
+      if (!any(is.nan(transformed_data))) {
+        skewness <- skewness(transformed_data)
+        
+        # Update the best transformation if skewness is lower
+        if (abs(skewness) < abs(best_skewness)) {
+          transformed_column <- transformed_data
+          best_skewness <- skewness
+        }
+      }
+    }
+    
+    # Replace the original column with the best transformed values
+    if (!is.null(transformed_column)) {
+      numeric_data_no_outliers[[col_name]] <- transformed_column
+    }
+  }
+ 
+}
+
+```
+
+```{r}
+Pearson_correlation<- cor(numeric_data_no_outliers, method = "pearson")
+print(Pearson_correlation)
+
+```
+
+```{r}
+str(Pearson_correlation)
+```
+
+
+```{r}
+library(ggplot2)
+
+# Calculate Pearson correlation matrix
+Pearson_correlation <- cor(numeric_data_no_outliers, method = "pearson")
+
+# Create a data frame for the correlation heatmap
+heatmap_data <- reshape2::melt(Pearson_correlation)
+
+# Rename the columns
+colnames(heatmap_data) <- c("Var1", "Var2", "Correlation")
+
+# Create the heatmap plot
+heatmap <- ggplot(heatmap_data, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f", Correlation)), color = "black", size = 3) +
+  ggtitle("Correlation Heatmap") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_gradient2(low = "yellow", mid = "orange", high = "red", midpoint = 0) +
+  labs(fill = "Correlation")
+
+print(heatmap)
+
+```
+
+```{r}
+
+library(ggplot2)
+# Calculate Pearson correlation matrix
+Pearson_correlation <- cor(numeric_data_no_outliers, method = "pearson")
+
+# Create a data frame for the correlation heatmap
+heatmap_data <- reshape2::melt(Pearson_correlation)
+
+# Rename the columns
+colnames(heatmap_data) <- c("Var1", "Var2", "Correlation")
+
+# Filter the data based on the threshold
+threshold <- 0.6
+filtered_data <- heatmap_data[abs(heatmap_data$Correlation) > threshold, ]
+
+# Create the filtered heatmap plot
+filtered_heatmap <- ggplot(filtered_data, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f", Correlation)), color = "black", size = 3) +
+  ggtitle("Correlation Heatmap (Threshold > 0.6)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_gradient2(low = "yellow", mid = "orange", high = "red", midpoint = 0) +
+  labs(fill = "Correlation")
+
+print(filtered_heatmap)
+
+```
+```{r}
+# Encode the "productLetterGrade" column in T1_data
+T2_data$productLetterGrade_encoded <- ifelse(T2_data$productLetterGrade == "F", 0, 1)
+
+# Subset T1_data to match the number of rows in numeric_data_no_outliers
+T2_data_subset <- T2_data[1:nrow(numeric_data_no_outliers), ]
+
+# Add the encoded column to numeric_data_no_outliers
+numeric_data_no_outliers$productLetterGrade_encoded <- T2_data_subset$productLetterGrade_encoded
+
+# Print numeric_data_no_outliers
+print(numeric_data_no_outliers)
+```
+
+```{r}
+# Load the required package
+library(MASS)
+
+# Create a data frame with the selected features and target variable
+data <- data.frame(
+  meetingHoursTotal = numeric_data_no_outliers$meetingHoursTotal,
+  inPersonMeetingHoursTotal = numeric_data_no_outliers$inPersonMeetingHoursTotal,
+  nonCodingDeliverablesHoursTotal = numeric_data_no_outliers$nonCodingDeliverablesHoursTotal,
+  helpHoursTotal = numeric_data_no_outliers$helpHoursTotal,
+  productLetterGrade_encoded = numeric_data_no_outliers$productLetterGrade_encoded
+)
+
+# Perform LDA
+lda_result <- lda(productLetterGrade_encoded ~ ., data)
+
+# Extract the LDA scores for each observation
+lda_scores <- predict(lda_result)$x
+
+# Add the LDA scores as new columns to your data frame
+numeric_data_no_outliers <- cbind(numeric_data_no_outliers, lda_scores)
+
+# Print the updated data frame
+print(numeric_data_no_outliers)
+
+
+```
+```{r}
+dim(numeric_data_no_outliers)
+```
+
+
+```{r}
+library(ggplot2)
+
+# Calculate Pearson correlation matrix
+Pearson_correlation <- cor(numeric_data_no_outliers, method = "pearson")
+
+# Create a data frame for the correlation heatmap
+heatmap_data <- reshape2::melt(Pearson_correlation)
+
+# Rename the columns
+colnames(heatmap_data) <- c("Var1", "Var2", "Correlation")
+
+# Create the heatmap plot
+heatmap <- ggplot(heatmap_data, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f", Correlation)), color = "black", size = 3) +
+  ggtitle("Correlation Heatmap") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_gradient2(low = "yellow", mid = "orange", high = "red", midpoint = 0) +
+  labs(fill = "Correlation")
+
+print(heatmap)
+
+```
+
+```{r}
+T2_data$teamLeadGender_encoded <- ifelse(T2_data$teamLeadGender == "F", 0, 1)
+
+# Subset T1_data to match the number of rows in numeric_data_no_outliers
+T2_data_subset <- T2_data[1:nrow(numeric_data_no_outliers), ]
+
+# Add the encoded column to numeric_data_no_outliers
+numeric_data_no_outliers$teamLeadGender <- T2_data_subset$teamLeadGender_encoded
+
+# Print numeric_data_no_outliers
+print(numeric_data_no_outliers)
+
+
+```
+
+```{r}
+T2_data$teamLeadGender_encoded <- ifelse(T2_data$teamLeadGender == "F", 0, 1)
+
+# Subset T1_data to match the number of rows in numeric_data_no_outliers
+T2_data_subset <- T2_data[1:nrow(numeric_data_no_outliers), ]
+
+# Add the encoded column to numeric_data_no_outliers
+numeric_data_no_outliers$teamLeadGender <- T2_data_subset$teamLeadGender_encoded
+
+# Print numeric_data_no_outliers
+print(numeric_data_no_outliers)
+
+
+```
+
+
+
+```{r}
+library(ggplot2)
+
+# Calculate Pearson correlation matrix
+Pearson_correlation <- cor(numeric_data_no_outliers, method = "pearson")
+
+# Create a data frame for the correlation heatmap
+heatmap_data <- reshape2::melt(Pearson_correlation)
+
+# Rename the columns
+colnames(heatmap_data) <- c("Var1", "Var2", "Correlation")
+
+# Create the heatmap plot
+heatmap <- ggplot(heatmap_data, aes(x = Var1, y = Var2, fill = Correlation)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f", Correlation)), color = "black", size = 3) +
+  ggtitle("Correlation Heatmap") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_gradient2(low = "yellow", mid = "orange", high = "red", midpoint = 0) +
+  labs(fill = "Correlation")
+
+print(heatmap)
+
+```
+
+```{r}
+
+library(rpart)
+
+# Assuming your numeric data without outliers is stored in 'numeric_data_no_outlier'
+# 'target_variable' is the binary target variable column
+
+# Separate the target variable from the predictor variables
+target <- numeric_data_no_outliers$productLetterGrade_encoded
+predictors <- subset(numeric_data_no_outliers, select = -productLetterGrade_encoded)
+
+# Train a decision tree model
+model <- rpart(target ~ ., data = predictors)
+
+# Get feature importance scores
+importance_scores <- model$variable.importance
+
+# Rank features based on importance scores in descending order
+ranked_features <- names(importance_scores[order(-importance_scores)])
+
+# Select the top N important features (e.g., top 10 features)
+N <- 10
+selected_features <- ranked_features[1:N]
+
+# Print the selected features
+
+cat("Selected Features:", selected_features, "\n")
+
+importance_df <- data.frame(Feature = names(importance_scores), Importance = importance_scores)
+importance_df <- importance_df[order(importance_df$Importance), ]
+importance_df$Feature <- factor(importance_df$Feature, levels = importance_df$Feature)
+
+ggplot(importance_df, aes(x = Feature, y = Importance)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Feature Importance",
+       x = "Features",
+       y = "Importance Score") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+selected_columns <- c("femaleTeamMembersPercent", "helpHoursTotal", "codingDeliverablesHoursTotal", "globalLeadAdminHoursTotal", "uniqueCommitMessagePercent", "teamLeadGender","teamDistribution_encoded","LD1","productLetterGrade_encoded")
+selected_data <-numeric_data_no_outliers[, selected_columns]
+
+output_file <- "T2_features_final.csv"
+write.csv(selected_data, file = output_file, row.names = FALSE)
+```
+
+
+
+
+
